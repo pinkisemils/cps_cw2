@@ -33,6 +33,7 @@ fn main() {
     let mut app = app::App {
         gl: GlGraphics::new(opengl),
         bodies: bodies::sample_bodies(),
+        mass_to_display_factor: 25.0f64,
     };
     let mut events = window.events();
     while let Some(e) = events.next(&mut window) { 
