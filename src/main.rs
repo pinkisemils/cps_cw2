@@ -36,6 +36,8 @@ fn main() {
         mass_to_display_factor: 25.0f64,
         frames_to_draw: 1000000000,
         frames_drawn: 0,
+        timestep: 1.0,
+        timestep_factor: 1000.0,
     };
     let mut events = window.events();
     while let Some(e) = events.next(&mut window) { 

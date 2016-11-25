@@ -1,10 +1,12 @@
 /// An interface and a mock struct to make bodies drawable
 ///
 #[cfg(target_feature = "sse2")]
-use simd::x86::sse2;
+use simd::x86::sse2::*;
 
 use std::sync::{Arc, RwLock};
 use std::clone::Clone;
+use std::cmp::max;
+
 pub trait Body {
     fn coordinates(&self) -> (f64, f64) where Self: Sized + Clone;
     fn mass(&self) -> f64 where Self: Sized + Clone;
@@ -20,47 +22,48 @@ pub trait DrawableBodies {
 
 #[derive(Clone)]
 pub struct SimpleBody {
-    pos: sse2::f64x2,
-    velocity: sse2::f64x2,
-    //accel: sse2::f64x2,
+    pos: f64x2,
+    velocity: f64x2,
     mass: f64,
 }
 
 
 static EPS: f64 = 1.5e1 * 1.5e1;
+static G: f64 = 6.67834 * 1e-11;
+static Damp: f64 = 1.5e1;
 
 pub fn advance(previous: &Vec<SimpleBody>, dt: f64) -> Vec<SimpleBody> {
     let len_bodies = previous.len();
     //let mut output: Vec<SimpleBody> = Vec::with_capacity(len_bodies);
     let mut output: Vec<SimpleBody> = previous.clone();
+    let damp: f64x2 = f64x2::splat(0.9995f64);
+    let undamp: f64x2 = f64x2::splat(0.5f64); 
+    let min = f64x2::splat(1e-10);
+                                   
 
-    let mut forces: Vec<Vec<sse2::f64x2>> = Vec::with_capacity(len_bodies);
-    let dt_mult = sse2::f64x2::splat(dt);
+    let mut forces: Vec<Vec<f64x2>> = Vec::with_capacity(len_bodies);
+    let dt_mult = f64x2::splat(dt);
 
     for (i, cur_bod) in previous.iter().enumerate() {
-        let cur_bod_mass = sse2::f64x2::splat(cur_bod.mass);
+        let cur_bod_mass = f64x2::splat(cur_bod.mass);
         let mut accel = [0.0f64; 2];
         forces.push(Vec::with_capacity(len_bodies));
         for (j, bod) in previous.iter().skip(i+1).enumerate() {
-            let bod_mass = sse2::f64x2::splat(bod.mass);
+            let bod_mass = f64x2::splat(bod.mass);
             let dist = cur_bod.pos - bod.pos;
             let angle = dist.extract(1).atan2(dist.extract(0));
             let dist = dist * dist;
-            let dist_sq = dist.extract(0) + dist.extract(1);
-            for _ in 0..3 {
-                dist_sq = 
-            }
-            let force = sse2::f64x2::splat((G * cur_bod.mass * bod.mass) / (dist_sq + EPS)); 
-
-            let forces = sse2::f64x2::new(angle.cos(), angle.sin()) * force;
+            let mut dist_sq = (dist.extract(0) + dist.extract(1));
             
+
+            let force = (G * cur_bod.mass * bod.mass); 
+
+            let forces = f64x2::new(angle.cos(), angle.sin()) 
+                       * f64x2::splat(force)  
+                       / f64x2::splat((dist_sq + EPS));
+           
             output[i].velocity = output[i].velocity - (forces / cur_bod_mass);
-            //output[i].accel = (forces / cur_bod_mass);
             output[i+j+1].velocity = output[i+j+1].velocity + (forces / bod_mass);
-            //output[i+j].accel = (forces / cur_bod_mass);
-            //println!("I: {}", i);
-            //println!("I+J: {}", i+j+1);
-            //println!("J: {}", j);
         }
     }
 
@@ -85,8 +88,8 @@ impl Body for SimpleBody {
 
 impl SimpleBody {
     pub fn new(x:f64, y:f64, vx:f64, vy:f64, mass:f64) -> SimpleBody {
-                SimpleBody{pos:sse2::f64x2::new(x, y),
-                            velocity:sse2::f64x2::new(vx, vy),
+                SimpleBody{pos:f64x2::new(x, y),
+                            velocity:f64x2::new(vx, vy),
                             mass:mass}
 
     }
@@ -94,7 +97,7 @@ impl SimpleBody {
 
 
 fn _sample_bodies() -> Vec<SimpleBody> {
-    let default_mass = 1000000.0f64;
+    let default_mass = 1000000000.0f64;
     let rect = [500.0, 400.0];
     vec![SimpleBody::new(rect[0], rect[0], 0.0, 0.0, default_mass),
         SimpleBody::new(rect[0], rect[1], 0.0, 0.0, default_mass),
@@ -111,5 +114,3 @@ pub fn sample() -> Vec<SimpleBody> {
 
 }
 
-static G: f64 = 6.67834 * 1e-11;
-static Damp: f64 = 1.5e1;

@@ -2,6 +2,7 @@ use std::sync::{Arc,RwLock};
 use opengl_graphics::GlGraphics;
 use piston_window::{UpdateArgs, RenderArgs};
 use bodies::{Body, SimpleBody, advance};
+use std::cmp::max;
 
 
 pub struct App{
@@ -11,6 +12,8 @@ pub struct App{
     pub mass_to_display_factor: f64,
     pub frames_to_draw: u64,
     pub frames_drawn: u64,
+    pub timestep: f64,
+    pub timestep_factor: f64,
 }
 
 impl App {
@@ -42,10 +45,15 @@ impl App {
     }
 
     pub fn update(&mut self, args: &UpdateArgs) {
-       if self.frames_to_draw > self.frames_drawn {
-            self.bodies = advance(&self.bodies, args.dt * 10000000.0);
+        let mut itr = 0;
+        let max_itrs = f64::ceil(args.dt / self.timestep * self.timestep_factor) as u64;
+                           
+
+       while (self.frames_to_draw > self.frames_drawn  && max_itrs > itr) {
+            self.bodies = advance(&self.bodies, self.timestep);
             println!("Update event");
             self.frames_drawn += 1;
+            itr +=1;
         }
     }
 }
